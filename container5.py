@@ -3,61 +3,58 @@
 import lxc
 import uuid
 import os
-import subprocess
 import sys
 import time
 
 
+class Pocker(object):
+    """Pocker...
 
-CONTAINER_NAME = str(uuid.uuid1())
-CLONE_NAME = str(uuid.uuid1())
-RENAME_NAME = str(uuid.uuid1())
+    Args:
+        arch (str): Image architeture.
+        dist (str): Linux distribution.
+        release (str): Distribution release.
 
-container = lxc.Container(CONTAINER_NAME)
+    """
 
-# Try to get the host architecture for dpkg systems
-arch = "amd64"
-try:
-    with open(os.path.devnull, "w") as devnull:
-        dpkg = subprocess.Popen(['dpkg', '--print-architecture'],
-                                stderr=devnull, stdout=subprocess.PIPE,
-                                universal_newlines=True)
+    CONTAINER_NAME = str(uuid.uuid1())
+    CLONE_NAME = str(uuid.uuid1())
+    RENAME_NAME = str(uuid.uuid1())
 
-        if dpkg.wait() == 0:
-            arch = dpkg.stdout.read().strip()
-except:
-    pass
+    def __init__(self, arch, dist, release):
+        self.container = lxc.Container(self.CONTAINER_NAME)
+        self.arch = arch
+        self.dist = dist
+        self.release = release
 
-## Create a rootfs
-print("Creating rootfs using 'download', arch=%s" % arch)
-options = {
-    "dist": "ubuntu",
-    "release": "trusty",
-    "arch": arch
-}
-container.create("download", 0, options)
-container.start()
-container.wait("RUNNING", 3)
+    def create(self):
+        options = {
+            "dist": self.dist,
+            "release": self.release,
+            "arch": self.arch
+        }
+        self.container.create("download", 0, options)
 
-count = 0
-ips = []
-while not ips or count == 10:
-    ips = container.get_ips()
-    print(ips)
-    time.sleep(1)
-    count += 1
+    def start(self):
+        """Container Start. x) """
+        self.container.start()
+        #self.container.wait("RUNNING", 3)
 
-if os.geteuid():
-    print("print first")
-    container.attach_wait(lxc.attach_run_command, ["/bin/bash"],
-                          namespaces=(lxc.CLONE_NEWUSER + lxc.CLONE_NEWNET
-                                      + lxc.CLONE_NEWUTS))
-else:
-    print("print second")
-    container.attach_wait(lxc.attach_run_command, ["/bin/bash"],
-                          namespaces=(lxc.CLONE_NEWNET + lxc.CLONE_NEWUTS))
+    def get_ip(self):
+        """Getting IP address. """
+        count = 0
+        ips = []
+        while not ips or count == 10:
+            ips = self.container.get_ips()
+            time.sleep(1)
+            count += 1
 
-if len(sys.argv) > 1 and sys.argv[1] == "--with-console":
-    ## Attaching to tty1
-    print("Attaching to tty1")
-    container.console(ttynum=1)
+    def console(self):
+        self.container.console(ttynum=1)
+
+if __name__ == '__main__':
+    pocker = Pocker("amd64", "ubuntu", "trusty")
+    pocker.create()
+    pocker.start()
+    pocker.get_ip()
+    pocker.console()
